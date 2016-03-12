@@ -257,52 +257,6 @@ class SquareMatrix : public Matrix<T>
 
 			return sum;
 		}
-
-		/*vector<T> CharacterValues(T precision)
-		{
-			vector<T> charValues(height);   
-			vector<T> intervals(height);
-
-			for (int i = 0; i < height; i++)
-			{
-				T interval = 0;
-
-				for (int j = 0; j < width; j++)
-				{
-					if (i != j)
-					{
-						interval += abs(matrix[i][j]);
-					}
-				}
-
-				intervals[i] = interval;
-			}
-
-			T charValue1, charValue2;
-
-			for (int i = 0; i < height; i++)
-			{
-				charValue1 = matrix[i][i] + intervals[i];
-				charValue2 = matrix[i][i] - intervals[i];
-				
-				while(abs(CharDet(charValue2)) > precision)
-				{ 
-					charValue1 = ChordMethod(charValue1, charValue2);
-
-					charValue1 += charValue2;
-					charValue2 = charValue1 - charValue2;
-					charValue1 -= charValue2;
-
-					cout << charValue2 << ": " << CharDet(charValue2) << endl;
-				}
-
-				charValues[i] = charValue2;
-				cout << endl << charValue2;
-				cout << endl << endl;
-			}
-
-			return charValues;
-		}*/
 			
 		void swapStr(int index1, int index2)
 		{
@@ -320,6 +274,26 @@ class SquareMatrix : public Matrix<T>
 				matrix[to][i] += multiplier * matrix[from][i];
 			}
 		}
+		
+		SquareMatrix<T> delRowAndCol (int row, int column)
+		{
+			vector<T> newData(0);
+
+			for (int i = 0; i < width; i++)
+			{
+				for (int j = 0; j < width; j++)
+				{
+					if (i != row && j != column)
+					{
+						newData.push_back(matrix[i][j]);
+					}
+				}
+			}
+
+			SquareMatrix<T> newMat(width - 1, newData);
+
+			return newMat;
+		}
 };
 
 template <typename T>
@@ -328,34 +302,135 @@ class QuadSurface
 	public:
 		QuadSurface(vector<T> coefArray)
 		{
-			int emptyCount = 10 - coefArray.size();
-			for (int i = 0; i < empty; i++)
+			///
+			int emptyElemCount = 10 - coefArray.size();
+
+			for (int i = 0; i < emptyElemCount; i++)
 			{
 				coefArray.push_back(0);
 			}
 
-			this->coefArray = coefArray;
+			a11 = coefArray[0];
+			a22 = coefArray[1];
+			a33 = coefArray[2];
+			a12 = coefArray[3] / 2;
+			a23 = coefArray[4] / 2;
+			a13 = coefArray[5] / 2;
+			a14 = coefArray[6] / 2;
+			a24 = coefArray[7] / 2;
+			a34 = coefArray[8] / 2;
+			a44 = coefArray[9] / 2;
+		}
 
-			///Invariants
+		void FindSurfaceType()
+		{
+			I1 = a11 + a22 + a33;
 
+			SquareMatrix<T> J3(3, vector<T>{a11, a12, a13,
+										a12, a22, a23,
+										a13, a23, a33});
+
+			I3 = J3.Determinant();
+
+			SquareMatrix<T>J2(2, vector<T>{a11, a12,
+										a12, a22});
+
+			I2 = J2.Determinant();
+
+			J2.matrix[0][1] = a13;
+			J2.matrix[1][0] = a13;
+			J2.matrix[1][1] = a33;
+
+			I2 += J2.Determinant();
+
+			J2.matrix[0][0] = a22;
+			J2.matrix[0][1] = a23;
+			J2.matrix[1][0] = a23;
+
+			I2 += J2.Determinant();
+			
+			SquareMatrix<T> J4(4, vector<T>{a11, a12, a13, a14,
+										a12, a22, a23, a24,
+										a13, a23, a33, a34,
+										a14, a24, a34, a44});
+
+			if (I3 == 0)
+			{
+				if (I2 == 0)
+				{
+					I3_half = J4.delRowAndCol(2, 2).Determinant() + J4.delRowAndCol(1, 1).Determinant() + J4.delRowAndCol(0, 0).Determinant();
+
+					if (I3_half == 0)
+					{
+						SquareMatrix<T> J2_half(2, vector<T>{a11, a14,
+														 a14, a44});
+
+						I2_half = J2_half.Determinant();
+
+						J2.matrix[0][0] = a22;
+						J2.matrix[0][1] = a24;
+						J2.matrix[1][0] = a24;
+
+						I2_half += J2_half.Determinant();
+
+						J2.matrix[0][0] = a33;
+						J2.matrix[0][1] = a34;
+						J2.matrix[1][0] = a34;
+
+						I2_half += J2_half.Determinant();
+
+						cout << I1 << "x^2 + " << I2_half / I1;
+					}
+					else
+					{
+						cout << I1 << "x^2 + " << sqrt(-I3_half / I1) << "y";
+					}
+				}
+				else
+				{
+					///найти корни хар. полинома
+
+					T D = pow(I1, 2) - 4 * I2;
+
+					cout << I1 + sqrt(D) << "x^2 + " << I1 - sqrt(D) << "y^2 + ";
+
+					I4 = J4.Determinant();
+
+					if (I4 == 0)
+					{
+						cout << I3_half / I2;
+					}
+					else
+					{
+						cout << 2 * sqrt(-I4 / I2) << "z";
+					}
+				}
+			}
+			else
+			{
+				T Q = (I1*I1 - 3*I2) / 9;
+				T R = (-2*pow(I1, 3) + 9 * I1 * I2 - 27 * I3) / 54;
+
+				T t = R / pow(Q, 3 / 2);
+				t = acos(t) / 3;
+				T x1 = -2 * sqrt(Q) * cos(t) + I1 / 3;
+				T x2 = -2 * sqrt(Q) * cos(t + (2 * 3.14 / 3)) + I1 / 3;
+				T x3 = -2 * sqrt(Q) * cos(t - (2 * 3.14 / 3)) + I1 / 3;
+
+				cout << x1 << "x^2 + (" << x2 << ")y^2 + (" << x3 << ")z^2 + (" << J4.Determinant() / I3 << ")";
+			}
 		}
 			
-		T I1, I2, I3, I3_half, I2_half, I_Char;
+		T I1, I2, I3, I3_half, I2_half, I4, I_Char;
 
-		vector<T> coefArray;// a11, a22, a33, a12, a23, a13, a14, a24, a34, a44;
+		T a11, a22, a33, a12, a23, a13, a14, a24, a34, a44;
 };
 
 
 int main()
 {
 	cout << "" << std::endl;
-
-	SquareMatrix<double> m1(3, vector<double>{1, 2, 3, 4, 5, 6, 7, 8, 9});
-	
-	SquareMatrix<double> m2(m1);
-
-	double a = m1.Determinant();
-
+	s.FindSurfaceType();
 	system("pause>>null");
 
 	return 0;
